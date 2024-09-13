@@ -9,10 +9,11 @@ from langchain_community.utilities import SQLDatabase
 from langchain_openai import ChatOpenAI
 from langchain.chains import create_sql_query_chain
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate, ChatPromptTemplate, FewShotPromptTemplate
 from dotenv import load_dotenv
-from prompts.example import example
+from prompts.example import example, example_prompt
 from prompts.prompt import response_llm
+from prompts.query_valid import system
 
 load_dotenv()
 OPENAI_API_KEY= os.getenv("OPENAI_API_KEY")
@@ -27,11 +28,20 @@ def clean_query(query):
     ### TODO: CHECK FOR SQL INJECTION
     return query
 
+# Fewshot promt
+prompt = FewShotPromptTemplate(
+    examples=example,
+    example_prompt=example_prompt,
+    prefix="You are a SQLite expert. Given an input question, create a syntactically correct SQLite query to run. Unless otherwise specificed, do not return more than {top_k} rows.\n\nHere is the relevant table info: {table_info}\n\nBelow are a number of examples of questions and their corresponding SQL queries.",
+    suffix="User input: {input}\nSQL query: ",
+    input_variables=["input", "top_k", "table_info"],
+)
+#
 
 answer_prompt = PromptTemplate.from_template(response_llm)
 
 query_executor = QuerySQLDataBaseTool(db=db)
-query_generator = create_sql_query_chain(llm, db)
+query_generator = create_sql_query_chain(llm, db,prompt=prompt) 
 sql_response_translator = answer_prompt | llm | StrOutputParser()
 
 chain=(
@@ -61,3 +71,4 @@ def read_root():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="localhost", port=8000)
+#http://localhost:8000/news_article/playground/
