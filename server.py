@@ -13,7 +13,10 @@ from langchain_core.prompts import PromptTemplate, ChatPromptTemplate, FewShotPr
 from dotenv import load_dotenv
 from prompts.example import example, example_prompt
 from prompts.prompt import response_llm
+from prompts.ques_prompt import response_ques_llm
 from prompts.query_valid import system
+from langchain.schema import runnable
+
 
 load_dotenv()
 OPENAI_API_KEY= os.getenv("OPENAI_API_KEY")
@@ -40,16 +43,21 @@ prompt = FewShotPromptTemplate(
 
 answer_prompt = PromptTemplate.from_template(response_llm)
 
-query_executor = QuerySQLDataBaseTool(db=db)
-query_generator = create_sql_query_chain(llm, db,prompt=prompt) 
-sql_response_translator = answer_prompt | llm | StrOutputParser()
+quest_prompt = ChatPromptTemplate.from_template(response_ques_llm) # yêu cầu llm trả về ques ko viết tắt
 
-chain=(
+query_executor = QuerySQLDataBaseTool(db=db)
+query_generator = create_sql_query_chain(llm, db, prompt = prompt)
+sql_response_translator = answer_prompt | llm | StrOutputParser()
+get_new_quest = quest_prompt | llm
+
+
+
+chain = quest_prompt|llm|StrOutputParser()|{"question": RunnablePassthrough()}|(
     RunnablePassthrough\
         .assign(query=query_generator | clean_query)\
         .assign(result=itemgetter("query") | query_executor)
-    ) | sql_response_translator 
-
+) | sql_response_translator  
+##
 
 app = FastAPI(
     title="NLP4E",
