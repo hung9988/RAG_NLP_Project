@@ -1,0 +1,8 @@
+langchain
+langserve 
+langchain_openai
+python-dotenv
+langchain_community
+langchain_huggingface
+ipykernel
+psycopg2-binary
